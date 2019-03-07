@@ -1,5 +1,6 @@
 # Use an official Python runtime as a parent image
 FROM ubuntu:16.04
+ARG VERSION_NDNCPP=v0.15
 ARG USER=nfd
 ARG PASS=nfd
 
@@ -9,11 +10,11 @@ COPY id_rsa root/.ssh/id_rsa
 COPY id_rsa.pub root/.ssh/id_rsa.pub
 
 # Set the working directory to /ndn
-WORKDIR /ndn
+# WORKDIR /ndn
 
 # Install any needed packages
 RUN apt-get update \
-	&& apt-get -y install git sudo openssh-server
+	&& apt-get -y install git sudo openssh-server build-essential libssl-dev
 
 # Install sshd and add ssh fingerprint to known hosts
 RUN mkdir /var/run/sshd \
@@ -21,11 +22,12 @@ RUN mkdir /var/run/sshd \
 	&& /usr/sbin/sshd \
 	&& useradd --create-home --shell /bin/bash --groups sudo $USER \
 	&& echo $USER':'$PASS | chpasswd \
-	&& ssh-keyscan -H gitlab.itec.aau.at >> ~/.ssh/known_hosts
+	&& ssh-keyscan -H gitlab.itec.aau.at,143.205.176.126 >> ~/.ssh/known_hosts
+	# gitlab.itec.aau.at,143.205.176.126
 
-RUN git clone --recursive git@gitlab.itec.aau.at:julian-janda/NDN-RTC.git \
-	&& cd NDN-RTC/cpp \
-	&& git checkout remotes/origin/arc-dev_2.1
+RUN git clone --recursive https://github.com/jujanda/ndnrtc_arc.git \
+	&& cd ndnrtc_arc/cpp/ \
+	&& git checkout arc-dev_2.1
 
 # Make port 80 available to the world outside this container
 EXPOSE 80

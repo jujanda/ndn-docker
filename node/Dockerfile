@@ -1,10 +1,30 @@
+# Use an official Python runtime as a parent image
 FROM ubuntu:16.04
 LABEL maintainer "Julian Janda <julian.janda@aau.at>"
 ARG VERSION_CXX=ndn-cxx-0.6.0 
 ARG VERSION_NFD=NFD-0.6.0
-ARG VERION_NDNCPP=v0.13
+ARG VERSION_NDNCPP=v0.15
 ARG BRANCH_NDNRTC=arc-dev_2.1
-COPY id_rsa.pub /.ssh/id_rsa.pub
+ARG USER=nfd
+ARG PASS=nfd
+
+# Copy ssh stuff for gitlab access
+COPY config root/.ssh/config 
+COPY id_rsa root/.ssh/id_rsa
+COPY id_rsa.pub root/.ssh/id_rsa.pub
+
+# Install any needed packages
+RUN apt-get update \
+    && apt-get -y install git sudo openssh-server build-essential libssl-dev
+
+# Install sshd and add ssh fingerprint to known hosts
+RUN mkdir /var/run/sshd \
+    && chmod 0755 /var/run/sshd \
+    && /usr/sbin/sshd \
+    && useradd --create-home --shell /bin/bash --groups sudo $USER \
+    && echo $USER':'$PASS | chpasswd \
+    && ssh-keyscan -H gitlab.itec.aau.at >> ~/.ssh/known_hosts
+
 
 # ========= NFD =========
 # install tools
@@ -77,21 +97,14 @@ RUN  apt-get update \
 
 
 # Installing NDN-CPP
-# RUN cd / \
-#     && git clone https://github.com/named-data/ndn-cpp \
-#     && cd ndn-cpp \
-#     && git checkout $VERION_NDNCPP \
-#     && mkdir -p build/share \
-#     && ./configure --with-std-shared-ptr=no --with-std-function=no --prefix=$(pwd)/build \
-#     && make && make install \
-#     && rm -Rf /ndn-cpp
-
-# RUN cd / \
-#     && git clone https://github.com/named-data/ndn-cpp \
-#     && cd ndn-cpp \
-#     && ./configure --with-std-shared-ptr=no --with-std-function=no \
-#     && make && make install \
-#     && rm -Rf /ndn-cpp
+RUN cd / \
+    && git clone https://github.com/named-data/ndn-cpp \
+    && cd ndn-cpp \
+    && git checkout $VERSION_NDNCPP \
+    && ./configure --with-std-shared-ptr=no --with-std-function=no \
+    && make && make install \
+    && rm -Rf /ndn-cpp
+    
 
 # Installing OpenFEC
 RUN cd / \
@@ -113,51 +126,19 @@ RUN cd / \
 #     && ./configure --prefix=$(pwd)/build \
 #     && make && make install
 
-
-# # Installing depot tools
-# RUN cd / \
-#     && git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git \
-#     && export PATH=$PATH:`pwd`/depot_tools
-
-# # Installing WebRTC (branch-heads/59)
-# RUN mkdir webrtc-checkout \
-#     && cd webrtc-checkout \
-#     && fetch --nohooks webrtc \
-#     && gclient sync \
-#     && cd src \
-#     && git checkout branch-heads/59 \
-#     && gclient sync \
-#     && ./build/install-build-deps.sh
-
-# # Installing NDN-RTC
-# RUN && cd / \
-#     && git clone --recursive https://github.com/remap/ndnrtc \
-#     && cd ndnrtc \
-#     && git checkout df267aa1c019a3a6644b7a78909345b639ceca8c \
-#     && cd cpp && mkdir -p build/share \
-#     && echo 'CPPFLAGS="-DWEBRTC_POSIX" CXXFLAGS="-DWEBRTC_POSIX"' >  build/share/config.site \
-#     && echo NDNCPPDIR=`pwd`/../../ndn-cpp/build/include >> build/share/config.site \
-#     && echo NDNCPPLIB=`pwd`/../../ndn-cpp/build/lib >> build/share/config.site \
-#     && echo OPENFECDIR=`pwd`/../../openfec_v1.4.2 >> build/share/config.site \
-#     && echo WEBRTCDIR=`pwd`/../../webrtc-checkout/src >> build/share/config.site \
-#     && echo LCONFIGDIR=`pwd`/../../libconfig/build/include >> build/share/config.site \
-#     && echo LCONFIGLIB=`pwd`/../../libconfig/build/lib >> build/share/config.site \
-#     && ./configure --prefix=$(pwd)/build \
-#     && make && make install
-
 # WebRTC & NDN-RTC (doing in one step to avoid large image size)
-# RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git \
-#     && export PATH=$PATH:`pwd`/depot_tools \
-#     && mkdir webrtc-checkout && cd webrtc-checkout \
-#     && fetch --nohooks webrtc \
-#     && cd src && ./build/install-build-deps.sh --no-syms --no-prompt \
-#     && git checkout -b branch-heads-59 refs/remotes/branch-heads/59 \
-#     && gclient sync \
-#     && gn gen out/Default --args='is_debug=false' \
-#     && ninja -C out/Default \
-#     && cd / \
-RUN git clone --recursive git@gitlab.itec.aau.at:julian-janda/NDN-RTC.git \
-    && cd /ndnrtc/cpp && mkdir -p build/share \
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git \
+    && export PATH=$PATH:`pwd`/depot_tools \
+    && mkdir webrtc-checkout && cd webrtc-checkout \
+    && fetch --nohooks webrtc \
+    && cd src && ./build/install-build-deps.sh --no-syms --no-prompt \
+    && git checkout -b branch-heads-59 refs/remotes/branch-heads/59 \
+    && gclient sync \
+    && gn gen out/Default --args='is_debug=false' \
+    && ninja -C out/Default \
+    && cd / \
+    && git clone --recursive https://github.com/jujanda/ndnrtc_arc.git \
+    && cd ndnrtc_arc/cpp/ && mkdir -p build/share \
     && git checkout $BRANCH_NDNRTC \
     && echo 'CPPFLAGS="-DWEBRTC_POSIX" CXXFLAGS="-DWEBRTC_POSIX"' > build/share/config.site \
     && echo OPENFECDIR=/openfec_v1.4.2 >> build/share/config.site \
@@ -173,28 +154,51 @@ RUN git clone --recursive git@gitlab.itec.aau.at:julian-janda/NDN-RTC.git \
 #     && apt-get install libxcomposite-dev \
 #     && make ndnrtc-client
 
-# # cleanup
-# RUN apt autoremove \
-#     && apt-get remove -y wget autoconf automake libtool cmake git build-essential \
-#                          lsb-release protobuf-compiler
+
+# Install command scheduler
+RUN git clone https://github.com/theuerse/emulation-cmdscheduler.git \
+    && cd emulation-cmdscheduler/ \
+    && cmake . \
+    && make \
+    && make install
+
+
+# cleanup
+RUN apt autoremove \
+    && apt-get remove -y wget autoconf automake libtool cmake git build-essential \
+                         lsb-release protobuf-compiler
 
 # # Create identity and install certificate
 # RUN ndnsec-keygen /ndndn/test | ndnsec-install-cert - \
 #     && ndnsec-dump-certificate -i /ndndn/test > /ndnrtc/cpp/tests/policy_config/signing.cert
 
-# WORKDIR /ndnrtc/cpp
+# Create identity and install certificate
+RUN ndnsec-keygen /ndnrtc_arc | ndnsec-install-cert - \
+    && ndnsec-dump-certificate -i /ndnrtc_arc > /ndnrtc_arc/cpp/tests/policy_config/signing.cert
+
+# Install necessary tools fo emulation framework
+RUN apt-get install -y nano iptables 
+
+WORKDIR /ndnrtc_arc/cpp
 
 # COPY producer.cfg /configs/
 # COPY consumer.cfg /configs/
 # COPY run.sh /ndnrtc/cpp
 # RUN chmod +x /ndnrtc/cpp/run.sh
 
+COPY in_256x144.raw /ndnrtc_arc/cpp/tests/
+COPY sudoers /etc/sudoers
 
 EXPOSE 6363/tcp
 EXPOSE 6363/udp
-EXPOSE 22/tcp
+EXPOSE 80
 
-ENV CONFIG=/usr/local/etc/ndn/nfd.conf
-ENV LOG_FILE=/logs/nfd.log
+# Define environment variable
+ENV NAME World
+# ENV CONFIG=/usr/local/etc/ndn/nfd.conf
+# ENV LOG_FILE=/logs/nfd.log
 
-CMD /usr/local/bin/nfd -c $CONFIG > $LOG_FILE 2>&1
+# CMD /usr/local/bin/nfd -c $CONFIG > $LOG_FILE 2>&1
+
+# Run sshd when the container launches
+CMD /usr/sbin/sshd -D && nfd-start -D

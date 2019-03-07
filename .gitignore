@@ -13,3 +13,4 @@ env/
 
 # Other
 generated/
+*.raw
