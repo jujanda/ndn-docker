@@ -172,12 +172,16 @@ RUN apt autoremove \
 # RUN ndnsec-keygen /ndndn/test | ndnsec-install-cert - \
 #     && ndnsec-dump-certificate -i /ndndn/test > /ndnrtc/cpp/tests/policy_config/signing.cert
 
-# Create identity and install certificate
+# Create identity and install certificate (move upwards)
 RUN ndnsec-keygen /ndnrtc_arc | ndnsec-install-cert - \
     && ndnsec-dump-certificate -i /ndnrtc_arc > /ndnrtc_arc/cpp/tests/policy_config/signing.cert
 
-# Install necessary tools fo emulation framework
-RUN apt-get install -y nano iptables 
+# Install necessary tools fo emulation framework (move upwards)
+RUN apt-get install -y nano iptables iperf
+ 
+
+# (move upwards)
+RUN mkdir /ndnrtc_arc/cpp/loopback
 
 WORKDIR /ndnrtc_arc/cpp
 
