@@ -14,3 +14,5 @@ env/
 # Other
 generated/
 *.raw
+
+node/sudoers
