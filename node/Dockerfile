@@ -15,7 +15,7 @@ COPY id_rsa.pub root/.ssh/id_rsa.pub
 
 # Install any needed packages
 RUN apt-get update \
-    && apt-get -y install git sudo openssh-server build-essential libssl-dev
+    && apt-get -y install sudo git openssh-server build-essential libssl-dev screen
 
 # Install sshd and add ssh fingerprint to known hosts
 RUN mkdir /var/run/sshd \
