@@ -4,7 +4,8 @@ LABEL maintainer "Julian Janda <julian.janda@aau.at>"
 ARG VERSION_CXX=ndn-cxx-0.6.0 
 ARG VERSION_NFD=NFD-0.6.0
 ARG VERSION_NDNCPP=v0.15
-ARG BRANCH_NDNRTC=arc-dev_2.1
+# ARG BRANCH_NDNRTC=arc-dev_2.1
+ARG BRANCH_NDNRTC=c53a8f0acf2314b29b594512243a005e0f2339c6
 ARG USER=nfd
 ARG PASS=nfd
 
@@ -15,16 +16,16 @@ COPY id_rsa.pub root/.ssh/id_rsa.pub
 
 # Install any needed packages
 RUN apt-get update \
-    && apt-get -y install sudo git openssh-server build-essential libssl-dev screen
+    && apt-get -y install sudo git openssh-server build-essential libssl-dev screen nano iptables iperf
 
 # Install sshd and add ssh fingerprint to known hosts
 RUN mkdir /var/run/sshd \
     && chmod 0755 /var/run/sshd \
     && /usr/sbin/sshd \
     && useradd --create-home --shell /bin/bash --groups sudo $USER \
-    && echo $USER':'$PASS | chpasswd \
-    && ssh-keyscan -H gitlab.itec.aau.at >> ~/.ssh/known_hosts
+    && echo $USER':'$PASS | chpasswd
 
+#&& ssh-keyscan -H gitlab.itec.aau.at >> ~/.ssh/known_hosts
 
 # ========= NFD =========
 # install tools
@@ -32,7 +33,7 @@ RUN  apt-get update \
      && apt-get install -y git build-essential
 
 # install ndn-cxx and NFD dependencies
-RUN apt-get install -y python libsqlite3-dev libboost-all-dev libssl-dev pkg-config libssl-dev libpcap-dev
+RUN apt-get install -y python libsqlite3-dev libboost-all-dev libssl-dev pkg-config libpcap-dev
 
 # install ndn-cxx
 RUN git clone https://github.com/named-data/ndn-cxx.git \
@@ -177,10 +178,7 @@ RUN ndnsec-keygen /ndnrtc-loopback | ndnsec-install-cert - \
     && ndnsec-dump-certificate -i /ndnrtc-loopback > /ndnrtc_arc/cpp/tests/policy_config/signing.cert
 
 # Install necessary tools fo emulation framework (move upwards)
-RUN apt-get install -y nano iptables iperf
-
-# (move upwards)
-RUN mkdir /ndnrtc_arc/cpp/loopback
+# RUN apt-get install -y nano iptables iperf
 
 WORKDIR /ndnrtc_arc/cpp
 
@@ -204,4 +202,4 @@ ENV NAME World
 # CMD /usr/local/bin/nfd -c $CONFIG > $LOG_FILE 2>&1
 
 # Run sshd when the container launches
-CMD /usr/sbin/sshd -D && nfd-start -D
+CMD /usr/sbin/sshd -D
