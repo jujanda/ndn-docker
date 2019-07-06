@@ -173,7 +173,7 @@ RUN apt autoremove \
 # RUN ndnsec-keygen /ndndn/test | ndnsec-install-cert - \
 #     && ndnsec-dump-certificate -i /ndndn/test > /ndnrtc/cpp/tests/policy_config/signing.cert
 
-# Create identity and install certificate (move upwards)
+# Create identity and install certificate (doesn't work here. needs to be executed again as root in running container!)
 RUN ndnsec-keygen /ndnrtc-loopback | ndnsec-install-cert - \
     && ndnsec-dump-certificate -i /ndnrtc-loopback > /ndnrtc_arc/cpp/tests/policy_config/signing.cert
 
